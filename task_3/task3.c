@@ -12,28 +12,46 @@
 #include <sys/wait.h>
 #include <string.h>
 
+#define MAX_INPUT 100
+#define MAX_ARGS 10
+
 int main() {
-    char command[100];
+    char command[MAX_INPUT];
+    char *args[MAX_ARGS];
     pid_t pid;
 
     while (1) {
         printf("Введите имя программы и опции запуска: ");
-        fgets(command, sizeof(command), stdin);
-        command[strcspn(command, "\n")] = 0;
+        if (fgets(command, sizeof(command), stdin) == NULL) {
+            perror("Ошибка чтения команды");
+            continue;
+        }
+        command[strcspn(command, "\n")] = 0; // Убираем символ новой строки
+
+        // Проверяем команду на выход
+        if (strcmp(command, "exit") == 0) {
+            break;
+        }
+
+        // Разбиваем команду на аргументы
+        int i = 0;
+        args[i] = strtok(command, " ");
+        while (args[i] != NULL && i < MAX_ARGS - 1) {
+            args[++i] = strtok(NULL, " ");
+        }
+        args[i] = NULL;
 
         pid = fork();
         if (pid == 0) {
             // Если мы находимся в дочернем процессе, выполняем введенную программу
-            system(command);
-            exit(0);
-        } else {
+            execvp(args[0], args);
+            perror("Ошибка выполнения команды");
+            exit(EXIT_FAILURE);
+        } else if (pid > 0) {
             // Если мы находимся в родительском процессе, ожидаем завершения дочернего процесса
             wait(NULL);
-        }
-
-        // Проверяем, не ввели ли мы команду exit
-        if (strcmp(command, "exit") == 0) {
-            break;
+        } else {
+            perror("Ошибка создания процесса");
         }
     }
 
